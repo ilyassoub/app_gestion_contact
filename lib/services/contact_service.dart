@@ -1,27 +1,65 @@
-// lib/services/contact_service.dart
-import 'package:hive/hive.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 import '../models/contact.dart';
 
 class ContactService {
-  static const String boxName = 'contactsBox';
-  final Box _box = Hive.box(boxName);
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final _uuid = Uuid();
 
-  List<Contact> getAll() {
-    return _box.values.cast<Contact>().toList();
+  Future<List<Contact>> getAll() async {
+    try {
+      final snapshot = await _firestore.collection('contacts').get();
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return Contact(
+          id: doc.id,
+          name: data['name'],
+          phone: data['phone'],
+          email: data['email'] ?? '',
+          note: data['note'] ?? '',
+          favorite: data['favorite'] ?? false,
+        );
+      }).toList();
+    } catch (e) {
+      print('Error fetching contacts: $e');
+      return [];
+    }
   }
 
   Future<void> add(Contact contact) async {
-    await _box.put(contact.id, contact);
+    try {
+      await _firestore.collection('contacts').doc(contact.id).set({
+        'name': contact.name,
+        'phone': contact.phone,
+        'email': contact.email,
+        'note': contact.note,
+        'favorite': contact.favorite,
+      });
+    } catch (e) {
+      print('Error adding contact: $e');
+    }
   }
 
   Future<void> update(Contact contact) async {
-    await contact.save();
+    try {
+      await _firestore.collection('contacts').doc(contact.id).update({
+        'name': contact.name,
+        'phone': contact.phone,
+        'email': contact.email,
+        'note': contact.note,
+        'favorite': contact.favorite,
+      });
+    } catch (e) {
+      print('Error updating contact: $e');
+    }
   }
 
   Future<void> delete(String id) async {
-    await _box.delete(id);
+    try {
+      await _firestore.collection('contacts').doc(id).delete();
+    } catch (e) {
+      print('Error deleting contact: $e');
+    }
   }
 
   String createId() => _uuid.v4();
